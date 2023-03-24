@@ -257,6 +257,9 @@ msgstr "Score"
 msgid "tab:winrate"
 msgstr "Win Rate"
 
+msgid "tab:highlights"
+msgstr "Highlights"
+
 #. shown on a graph tab
 msgid "tab:rank_est"
 msgstr "Rank Estimate"

@@ -2,14 +2,16 @@
     "engine": {
         "katago": "",
         "altcommand": "",
-        "model": "katrain/models/g170e-b15c192-s1672170752-d466197061.bin.gz",
+        "model": "katrain/models/kata1-b18c384nbt-s5503060480-d3193512631.bin.gz",
         "config": "katrain/KataGo/analysis_config.cfg",
         "threads": 12,
         "max_visits": 500,
         "fast_visits": 25,
         "max_time": 8.0,
         "wide_root_noise": 0.04,
-        "_enable_ownership": true
+        "_enable_ownership": true,
+        "bad_threshold": 10,
+        "good_winrate": 0.75
     },
     "contribute": {
         "katago": "",
@@ -41,10 +43,10 @@
     },
     "game": {
         "size": "19",
-        "komi": 6.5,
+        "komi": 7.5,
         "handicap": 0,
-        "rules": "japanese",
-        "clear_cache": false,
+        "rules": "chinese",
+        "clear_cache": true,
         "setup_move":100,
         "setup_advantage":20
     },
@@ -176,7 +178,8 @@
                     "open",
                     {
                         "score": true,
-                        "winrate": false
+                        "winrate": false,
+                        "highlights": false
                     }
                 ],
                 "stats_panel": [
@@ -210,7 +213,8 @@
                     "open",
                     {
                         "score": true,
-                        "winrate": true
+                        "winrate": true,
+                        "highlights": true
                     }
                 ],
                 "stats_panel": [

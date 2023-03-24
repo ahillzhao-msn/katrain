@@ -41,7 +41,7 @@ def check_thread(tb=False):  # for checking if draws occur in correct thread
         traceback.print_stack()
 
 
-PATHS = {}
+PATHS = {"PACKAGE":"katrain/"}
 
 
 def find_package_resource(path, silent_errors=False):

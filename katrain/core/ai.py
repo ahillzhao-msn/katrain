@@ -3,6 +3,7 @@ import math
 import random
 import time
 from typing import Dict, List, Optional, Tuple
+from typing_extensions import Self
 
 from katrain.core.constants import (
     AI_DEFAULT,

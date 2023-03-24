@@ -51,6 +51,8 @@ class GameNode(SGFNode):
         self.shortcuts_to = []
         self.shortcut_from = None
         self.analysis_from_sgf = None
+        self.bad_threshold = 10
+        self.good_winrate = 0.75
         self.clear_analysis()
 
     def add_shortcut(self, to_node):  # collapses the branch between them
@@ -195,6 +197,9 @@ class GameNode(SGFNode):
         region_of_interest=None,
         report_every=REPORT_DT,
     ):
+        self.bad_threshold = 10 if "bad_threshold" not in engine.config else float(engine.config["bad_threshold"])
+        self.good_winrate = 0.75 if "good_winrate" not in engine.config else float(engine.config["good_winrate"])
+
         engine.request_analysis(
             self,
             callback=lambda result, partial_result: self.set_analysis(
@@ -303,6 +308,26 @@ class GameNode(SGFNode):
         win_rate = win_rate or self.winrate
         if win_rate is not None:
             return f"{'B' if win_rate > 0.5 else 'W'} {max(win_rate,1-win_rate):.1%}"
+
+    @property
+    def badgood(self) -> Optional[int]:
+        bad_threshold = self.bad_threshold
+        good_winrate = self.good_winrate
+        if self.analysis_exists and self.points_lost is not None:
+            bad = self.points_lost >= bad_threshold
+            good = self.points_lost < -1 * bad_threshold
+            if self.player == 'B':
+                good = good and self.winrate >= good_winrate
+            else:
+                good = good and self.winrate < 1 - good_winrate
+            if bad:
+                return -1
+            elif good:
+                return 1
+            else:
+                return 0
+        else:
+            return 0
 
     def move_policy_stats(self) -> Tuple[Optional[int], float, List]:
         single_move = self.move

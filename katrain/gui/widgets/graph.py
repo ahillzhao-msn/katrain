@@ -6,6 +6,7 @@ from kivy.metrics import dp
 from kivy.properties import BooleanProperty, Clock, ListProperty, NumericProperty, StringProperty
 from kivy.uix.widget import Widget
 from kivymd.app import MDApp
+from kivy.graphics import *
 
 from katrain.gui.theme import Theme
 
@@ -62,9 +63,11 @@ class Graph(Widget):
 class ScoreGraph(Graph):
     show_score = BooleanProperty(True)
     show_winrate = BooleanProperty(True)
+    show_highlights = BooleanProperty(True)
 
     score_points = ListProperty([])
     winrate_points = ListProperty([])
+    highlights_points = ListProperty([])
 
     score_dot_pos = ListProperty([0, 0])
     winrate_dot_pos = ListProperty([0, 0])
@@ -101,6 +104,8 @@ class ScoreGraph(Graph):
     def show_graphs(self, keys):
         self.show_score = keys["score"]
         self.show_winrate = keys["winrate"]
+        self.show_highlights = keys["highlights"]
+        self.redraw_trigger()
 
     def update_graph(self, *args):
         nodes = self.nodes
@@ -156,6 +161,21 @@ class ScoreGraph(Graph):
                     )
                 self.winrate_dot_pos = winrate_dot_point
 
+            self.canvas.remove_group("badgood")
+            if self.show_highlights:
+                for r in nodes:
+                    if r.badgood == 0: continue
+                    with self.canvas:
+                        if r.player == 'B':
+                            Color(rgba=[0,1,0,0.6] if r.badgood == 1 else [0.658,0.047,0.25,0.95], group="badgood")
+                        else:
+                            Color(rgba=[0,1,0,0.6] if r.badgood == 1 else [0.89,0.957,0.153,0.95], group="badgood")
+                        Rectangle(pos=score_line_points[r.depth], 
+                                size=(self.highlight_size*0.75,self.highlight_size*2.5), group="badgood")
+                        
+                pass
+            else:
+                self.canvas.remove_group("badgood")
 
 Builder.load_string(
     """
@@ -179,6 +199,7 @@ Builder.load_string(
 
 <ScoreGraph>:
     canvas:
+        Clear
         Color:
             rgba: Theme.SCORE_COLOR
         Line:
@@ -206,6 +227,7 @@ Builder.load_string(
             id: winrate_dot
             pos: [c - self.highlight_size / 2 for c in (self.winrate_dot_pos if not self.navigate_move[0] else [self.navigate_move[1],self.navigate_move[3]] ) ]
             size: (self.highlight_size,self.highlight_size) if root.show_winrate else (0.0001,0.0001)
+
     # score ticks
     GraphMarkerLabel:
         font_size: root.marker_font_size
