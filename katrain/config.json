@@ -10,7 +10,7 @@
         "max_time": 8.0,
         "wide_root_noise": 0.04,
         "_enable_ownership": true,
-        "bad_threshold": 10,
+        "bad_threshold": 7,
         "good_winrate": 0.75
     },
     "contribute": {

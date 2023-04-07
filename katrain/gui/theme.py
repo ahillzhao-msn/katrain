@@ -221,3 +221,10 @@ class Theme:
 
     KEY_PAUSE_CONTRIBUTE = KEY_PAUSE_TIMER
     KEY_STOP_CONTRIBUTING = KEY_STOP_ANALYSIS
+
+    #Move Highlights
+    MOVE_BAD = {
+        "B": [0.658,0.047,0.25,0.95],
+        "W": [0.89,0.957,0.153,0.95]
+    }
+    MOVE_GOOD = [0,1,0,0.6]

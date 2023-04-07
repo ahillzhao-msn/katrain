@@ -861,6 +861,7 @@ class KaTrainApp(MDApp):
 
         Window.bind(on_request_close=self.on_request_close)
         Window.bind(on_dropfile=lambda win, file: self.gui.load_sgf_file(file.decode("utf8")))
+        Window.bind(size=self.on_resize)
         self.gui = KaTrainGui()
         Builder.load_file(popup_kv_file)
 
@@ -886,6 +887,26 @@ class KaTrainApp(MDApp):
             Window.top = win_top
 
         return self.gui
+
+    def on_resize(self, _instance, size):
+        win_left = win_top = win_size = None
+        try:
+            from screeninfo import get_monitors
+
+            for m in get_monitors():
+                window_scale_fac = min(window_scale_fac, (m.height - 100) / 1000, (m.width - 100) / 1300)
+        except Exception as e:
+            window_scale_fac = 0.85
+        win_size = [size[0] * window_scale_fac, size[1] * window_scale_fac]
+        self.gui.log(f"Setting window size to {win_size} and position to {[win_left, win_top]}", OUTPUT_DEBUG)
+        if win_left is not None and win_top is not None:
+            Window.left = win_left
+            Window.top = win_top
+        else:
+            Window.left = max(0, (m.width - size[0]) / 2)
+            Window.top = max(30, (m.height - size[1]) / 2)
+            
+        pass
 
     def on_language(self, _instance, language):
         self.gui.log(f"Switching language to {language}", OUTPUT_INFO)

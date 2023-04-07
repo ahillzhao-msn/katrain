@@ -67,7 +67,7 @@ class ScoreGraph(Graph):
 
     score_points = ListProperty([])
     winrate_points = ListProperty([])
-    highlights_points = ListProperty([])
+    highlights_boxes = []
 
     score_dot_pos = ListProperty([0, 0])
     winrate_dot_pos = ListProperty([0, 0])
@@ -79,16 +79,26 @@ class ScoreGraph(Graph):
     navigate_move = ListProperty([None, 0, 0, 0])
 
     def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos) and "scroll" not in getattr(touch, "button", ""):
-            ix, _ = min(enumerate(self.score_points[::2]), key=lambda ix_v: abs(ix_v[1] - touch.x))
-            self.navigate_move = [
-                self.nodes[ix],
-                self.score_points[2 * ix],
-                self.score_points[2 * ix + 1],
-                self.winrate_points[2 * ix + 1],
-            ]
-        else:
-            self.navigate_move = [None, 0, 0, 0]
+        try:
+            if self.collide_point(*touch.pos) and "scroll" not in getattr(touch, "button", ""):
+                ix = None
+                for p, s, i, c in self.highlights_boxes: 
+                    if touch.x>=p[0] and touch.x-p[0]<s[0] and touch.y>=p[1] and touch.y-p[1]<s[1]:
+                        ix = i
+                        break
+                if ix is None:
+                    ix, _ = min(enumerate(self.score_points[::2]), key=lambda ix_v: abs(ix_v[1] - touch.x))
+                
+                self.navigate_move = [
+                    self.nodes[ix],
+                    self.score_points[2 * ix],
+                    self.score_points[2 * ix + 1],
+                    self.winrate_points[2 * ix + 1],
+                ]
+            else:
+                self.navigate_move = [None, 0, 0, 0]
+        except:
+            pass
 
     def on_touch_move(self, touch):
         return self.on_touch_down(touch)
@@ -162,16 +172,24 @@ class ScoreGraph(Graph):
                 self.winrate_dot_pos = winrate_dot_point
 
             self.canvas.remove_group("badgood")
+            self.highlights_boxes = []
             if self.show_highlights:
                 for r in nodes:
                     if r.badgood == 0: continue
+                    r_pos = score_line_points[r.depth]
+                    r_size = (self.highlight_size*0.75,self.highlight_size * (2 + min(0.25 , r.points_lost / self.score_scale)))
+                    r_pos[0] = r_pos[0] - r_size[0] / 2
+                    r_pos[1] = r_pos[1] - r_size[0] / 2
                     with self.canvas:
+                        """
                         if r.player == 'B':
                             Color(rgba=[0,1,0,0.6] if r.badgood == 1 else [0.658,0.047,0.25,0.95], group="badgood")
                         else:
                             Color(rgba=[0,1,0,0.6] if r.badgood == 1 else [0.89,0.957,0.153,0.95], group="badgood")
-                        Rectangle(pos=score_line_points[r.depth], 
-                                size=(self.highlight_size*0.75,self.highlight_size*2.5), group="badgood")
+                        """
+                        Color(rgba=Theme.MOVE_GOOD if r.badgood == 1 else Theme.MOVE_BAD[r.player], group="badgood")
+                        Rectangle(pos=r_pos,size=r_size, group="badgood")
+                        self.highlights_boxes.append((r_pos, r_size, r.depth, r.player))
                         
                 pass
             else:

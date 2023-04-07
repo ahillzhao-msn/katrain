@@ -966,3 +966,7 @@ msgstr "Только для ходов"
 #. status message
 msgid "move range analysis"
 msgstr "Анализ ходов от {start_move} до {end_move} с {visits} посещениями"
+
+#. TODO
+msgid "tab:highlights"
+msgstr "Highlights"
