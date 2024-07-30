@@ -21,6 +21,8 @@ callgrind.*
 cpp/out
 .vs
 dist_sgf
+.gitignore
+.code-workspace
 
 # debug
 outdated_log.txt

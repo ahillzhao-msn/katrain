@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "katrain15.0",
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.pythonPath": ".venv\\Scripts\\python.exe",
+		"python.analysis.extraPaths": [
+			".venv\\Lib\\site-packages"
+		]
+	},
+	"extensions": [
+		"ms-python.python",
+		"ms-python.vscode-pylance"]
+	}
