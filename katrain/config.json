@@ -3,6 +3,8 @@
         "katago": "",
         "altcommand": "",
         "model": "katrain/models/kata1-b18c384nbt-s6582191360-d3422816034.bin.gz",
+        "human_model": "",
+        "human_profiles": ["rank_1k", "rank_3d", "rank_5k"],
         "config": "katrain/KataGo/analysis_config.cfg",
         "threads": 12,
         "max_visits": 500,

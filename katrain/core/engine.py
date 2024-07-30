@@ -127,9 +127,14 @@ class KataGoEngine(BaseEngine):
             if not os.path.isfile(cfg):
                 self.on_error(i18n._("Kata config not found").format(config=cfg), code="KATAGO-FILES")
                 return  # don't start
-            self.command = shlex.split(
-                f'"{exe}" analysis -model "{model}" -config "{cfg}" -analysis-threads {config["threads"]} -override-config "homeDataDir={os.path.expanduser(DATA_FOLDER)}"'
-            )
+            human_model = find_package_resource(config["human_model"])
+            if not os.path.isfile(human_model): 
+                self.human_profiles = []
+                command_string = f'"{exe}" analysis -model "{model}" -config "{cfg}" -analysis-threads {config["threads"]} -override-config "homeDataDir={os.path.expanduser(DATA_FOLDER)}"'
+            else:
+                self.human_profiles = config.get("human_profiles") or []
+                command_string = f'"{exe}" analysis -model "{model}" -human-model "{human_model}" -config "{cfg}" -analysis-threads {config["threads"]} -override-config "homeDataDir={os.path.expanduser(DATA_FOLDER)},humanSLProfile="'
+            self.command = shlex.split(command_string)
         self.start()
 
     def on_error(self, message, code=None, allow_popup=True):
@@ -288,7 +293,7 @@ class KataGoEngine(BaseEngine):
                             f"Query result {query_id} discarded -- recent new game or node reset?", OUTPUT_DEBUG
                         )
                     continue
-                callback, error_callback, start_time, next_move, _ = self.queries[query_id]
+                callback, error_callback, start_time, next_move, node, human_profile = self.queries[query_id]
                 if "error" in analysis:
                     del self.queries[query_id]
                     if error_callback:
@@ -312,7 +317,7 @@ class KataGoEngine(BaseEngine):
                     self.katrain.log(json_truncate_arrays(analysis), OUTPUT_EXTRA_DEBUG)
                     try:
                         if callback and results_exist:
-                            callback(analysis, partial_result)
+                            callback(analysis, partial_result, human_profile)
                     except Exception as e:
                         self.katrain.log(f"Error in engine callback for query {query_id}: {e}", OUTPUT_ERROR)
                         traceback.print_exc()
@@ -325,13 +330,16 @@ class KataGoEngine(BaseEngine):
     def _write_stdin_thread(self):  # flush only in a thread since it returns only when the other program reads
         while self.katago_process is not None:
             try:
-                query, callback, error_callback, next_move, node = self.write_queue.get(block=True, timeout=0.1)
+                query, callback, error_callback, next_move, node, human_profile = self.write_queue.get(block=True, timeout=0.1)
             except queue.Empty:
                 continue
             with self.thread_lock:
                 if "id" not in query:
-                    self.query_counter += 1
-                    query["id"] = f"QUERY:{str(self.query_counter)}"
+                    if human_profile is None:
+                        self.query_counter += 1
+                        query["id"] = f"QUERY:{str(self.query_counter)}"
+                    else:
+                        query["id"] = f"QUERY:{str(human_profile)}:{str(self.query_counter)}"
 
                 ponder = query.pop(self.PONDER_KEY, False)
                 if ponder:  # handle pondering in here to be in lock and such
@@ -353,7 +361,7 @@ class KataGoEngine(BaseEngine):
 
                 terminate = query.get("action") == "terminate"
                 if not terminate:
-                    self.queries[query["id"]] = (callback, error_callback, time.time(), next_move, node)
+                    self.queries[query["id"]] = (callback, error_callback, time.time(), next_move, node, human_profile)
                 tag = "ponder " if ponder else ("terminate " if terminate else "")
                 self.katrain.log(f"Sending {tag}query {query['id']}: {json.dumps(query)}", OUTPUT_DEBUG)
                 try:
@@ -363,8 +371,8 @@ class KataGoEngine(BaseEngine):
                     self.katrain.log(f"Exception in writing to katago: {e}", OUTPUT_DEBUG)
                     return  # some other thread will take care of this
 
-    def send_query(self, query, callback, error_callback, next_move=None, node=None):
-        self.write_queue.put((query, callback, error_callback, next_move, node))
+    def send_query(self, query, callback, error_callback, next_move=None, node=None, human_profile=None):
+        self.write_queue.put((query, callback, error_callback, next_move, node, human_profile))
 
     def request_analysis(
         self,
@@ -382,6 +390,7 @@ class KataGoEngine(BaseEngine):
         next_move: Optional[GameNode] = None,
         extra_settings: Optional[Dict] = None,
         report_every: Optional[float] = None,
+        human_profile: Optional[str] = None,
     ):
         nodes = analysis_node.nodes_from_root
         moves = [m for node in nodes for m in node.moves]
@@ -434,26 +443,33 @@ class KataGoEngine(BaseEngine):
         if time_limit:
             settings["maxTime"] = self.config["max_time"]
 
+        human_profile_settings = {
+            "humanSLProfile": human_profile,
+            "ignorePreRootHistory":False,
+            "humanSLRootExploreProbWeightless":0.8,
+            "humanSLCpuctPermanent":2.0
+        } if human_profile is not None else {}
+
         query = {
             "rules": self.get_rules(analysis_node.ruleset),
             "priority": self.base_priority + priority,
             "analyzeTurns": [len(moves)],
-            "maxVisits": visits,
+            "maxVisits": visits if human_profile is None else min(visits, 15),
             "komi": analysis_node.komi,
             "boardXSize": size_x,
             "boardYSize": size_y,
-            "includeOwnership": ownership and not next_move,
+            "includeOwnership": ownership and not next_move if human_profile is None else True,
             "includeMovesOwnership": ownership and not next_move,
-            "includePolicy": not next_move,
+            "includePolicy": not next_move if human_profile is None else True,
             "initialStones": [[m.player, m.gtp()] for m in initial_stones],
             "initialPlayer": analysis_node.initial_player,
             "moves": [[m.player, m.gtp()] for m in moves],
-            "overrideSettings": {**settings, **(extra_settings or {})},
+            "overrideSettings": {**settings, **(extra_settings or {}), **(human_profile_settings or {})},
             self.PONDER_KEY: ponder,
         }
         if report_every is not None:
             query["reportDuringSearchEvery"] = report_every
         if avoid:
             query["avoidMoves"] = avoid
-        self.send_query(query, callback, error_callback, next_move, analysis_node)
+        self.send_query(query, callback, error_callback, next_move, analysis_node, human_profile)
         analysis_node.analysis_visits_requested = max(analysis_node.analysis_visits_requested, visits)

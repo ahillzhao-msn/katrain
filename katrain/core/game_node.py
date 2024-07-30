@@ -106,6 +106,7 @@ class GameNode(SGFNode):
 
     def clear_analysis(self):
         self.analysis_visits_requested = 0
+        self.human_analysis = {}
         self.analysis = {"moves": {}, "root": None, "ownership": None, "policy": None, "completed": False}
 
     def sgf_properties(
@@ -197,8 +198,8 @@ class GameNode(SGFNode):
     ):
         engine.request_analysis(
             self,
-            callback=lambda result, partial_result: self.set_analysis(
-                result, refine_move, find_alternatives, region_of_interest, partial_result
+            callback=lambda result, partial_result, human_profile: self.set_analysis(
+                result, refine_move, find_alternatives, region_of_interest, partial_result, None
             ),
             priority=priority,
             visits=visits,
@@ -209,7 +210,28 @@ class GameNode(SGFNode):
             find_alternatives=find_alternatives,
             region_of_interest=region_of_interest,
             report_every=report_every,
+            human_profile=None,
         )
+        for ranking in engine.human_profiles:
+            if ranking not in self.human_analysis:
+                self.human_analysis[ranking] = {"moves": {}, "root": None, "ownership": None, "policy": None, "completed": False}
+
+            engine.request_analysis(
+                self,
+                callback=lambda result, partial_result, human_profile: self.set_analysis(
+                    result, refine_move, find_alternatives, region_of_interest, partial_result, human_profile
+                ),
+                priority=priority,
+                visits=visits,
+                ponder=ponder,
+                analyze_fast=analyze_fast,
+                time_limit=time_limit,
+                next_move=refine_move,
+                find_alternatives=find_alternatives,
+                region_of_interest=region_of_interest,
+                report_every=report_every,
+                human_profile=ranking,
+            )
 
     def update_move_analysis(self, move_analysis, move_gtp):
         cur = self.analysis["moves"].get(move_gtp)
@@ -235,7 +257,10 @@ class GameNode(SGFNode):
         additional_moves: bool = False,
         region_of_interest=None,
         partial_result: bool = False,
+        human_profile: Optional[str] = None,
     ):
+        analysis = self.human_analysis[human_profile] if human_profile else self.analysis
+
         if refine_move:
             pvtail = analysis_json["moveInfos"][0]["pv"] if analysis_json["moveInfos"] else []
             self.update_move_analysis(
@@ -246,14 +271,14 @@ class GameNode(SGFNode):
                 for m in analysis_json["moveInfos"]:
                     del m["order"]
             elif refine_move is None:  # normal update: old moves to end, new order matters. also for region?
-                for move_dict in self.analysis["moves"].values():
+                for move_dict in analysis["moves"].values():
                     move_dict["order"] = ADDITIONAL_MOVE_ORDER  # old moves to end
             for move_analysis in analysis_json["moveInfos"]:
                 self.update_move_analysis(move_analysis, move_analysis["move"])
-            self.analysis["ownership"] = analysis_json.get("ownership")
-            self.analysis["policy"] = analysis_json.get("policy")
+            analysis["ownership"] = analysis_json.get("ownership")
+            analysis["policy"] = analysis_json.get("policy")
             if not additional_moves and not region_of_interest:
-                self.analysis["root"] = analysis_json["rootInfo"]
+                analysis["root"] = analysis_json["rootInfo"]
                 if self.parent and self.move:
                     analysis_json["rootInfo"]["pv"] = [self.move.gtp()] + (
                         analysis_json["moveInfos"][0]["pv"] if analysis_json["moveInfos"] else []
@@ -262,7 +287,7 @@ class GameNode(SGFNode):
                         analysis_json["rootInfo"], self.move.gtp()
                     )  # update analysis in parent for consistency
             is_normal_query = refine_move is None and not additional_moves
-            self.analysis["completed"] = self.analysis["completed"] or (is_normal_query and not partial_result)
+            analysis["completed"] = analysis["completed"] or (is_normal_query and not partial_result)
 
     @property
     def ownership(self):

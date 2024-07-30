@@ -464,6 +464,7 @@ class Game(BaseGame):
             if even_if_present or not node.analysis_from_sgf or not node.load_analysis():
                 node.clear_analysis()
                 node.analyze(self.engines[node.next_player], priority=priority, analyze_fast=analyze_fast)
+        pass
 
     def set_current_node(self, node):
         if self.insert_mode:
